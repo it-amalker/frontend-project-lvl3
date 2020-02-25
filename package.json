@@ -1,10 +1,11 @@
 {
   "name": "newsfeed-by-amalker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "RSS news feed",
   "private": true,
   "scripts": {
-    "build": "webpack"
+    "build": "webpack",
+    "start:dev": "webpack-dev-server"
   },
   "repository": {
     "type": "git",
@@ -24,11 +25,14 @@
   },
   "homepage": "https://github.com/it-amalker/frontend-project-lvl3#readme",
   "dependencies": {
+    "axios": "^0.19.2",
     "bootstrap": "^4.4.1",
     "jquery": "^3.4.1",
     "lodash": "^4.17.15",
+    "melanke-watchjs": "^1.5.2",
     "popper.js": "^1.16.1",
-    "webpack-dev-server": "^3.10.3"
+    "webpack-dev-server": "^3.10.3",
+    "yup": "^0.28.1"
   },
   "devDependencies": {
     "@babel/core": "^7.8.4",
