@@ -1,4 +1,6 @@
 import _ from 'lodash';
+import i18next from 'i18next';
+import en from './locales/en';
 import parse from './parser';
 import watch from './watchers';
 
@@ -32,16 +34,24 @@ const validate = (inputValid, state) => {
   const inputedValue = state.form.fields.url;
   const isFeedAlreadyExist = state.feeds.filter((feed) => feed.url === inputedValue).length > 0;
   if (inputedValue === '') {
-    errors.emptyInput = 'Empty input field not allowed';
+    errors.emptyInput = i18next.t('errors.emptyInput');
   } else if (isFeedAlreadyExist) {
-    errors.alreadyExist = `Inputed feed <b>${inputedValue}</b> already in the feeds list below`;
+    errors.alreadyExist = i18next.t('errors.feedAlreadyExist', { value: inputedValue });
   } else if (!inputValid) {
-    errors.invalidUrl = 'Invalid RSS feed URL. Example of feed URL: <b>http://example.com/feed</b>';
+    errors.invalidUrl = i18next.t('errors.invalidUrl');
   }
   return errors;
 };
 
 export default () => {
+  i18next.init({
+    lng: 'en',
+    debug: true,
+    resources: {
+      en,
+    },
+  });
+
   const state = {
     form: {
       processState: 'filling',
@@ -81,7 +91,7 @@ export default () => {
       .then((response) => response.data)
       .catch(() => {
         state.form.processState = 'filling';
-        state.form.errors = { network: 'Network problems, try again.' };
+        state.form.errors = { network: i18next.t('errors.inetworkIssue') };
       })
       .then((data) => {
         updateFeedsState(state, parse(data));

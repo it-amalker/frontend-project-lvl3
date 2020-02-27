@@ -1,4 +1,5 @@
 import { watch } from 'melanke-watchjs';
+import i18next from 'i18next';
 
 const renderFeedList = (state) => {
   const container = document.querySelector('.container-fluid');
@@ -29,18 +30,26 @@ const renderFeedList = (state) => {
 
 const renderErrors = (errors) => {
   const errorNames = Object.keys(errors);
-  const errContainer = document.querySelector('.error-container');
-  if (errContainer.childNodes) {
-    errContainer.innerHTML = '';
+  const alertContainer = document.querySelector('.alert-container');
+  if (alertContainer.childNodes) {
+    alertContainer.innerHTML = '';
   }
   if (errorNames.length > 0) {
     errorNames.forEach((name) => {
       const div = document.createElement('div');
       div.classList.add('alert', 'alert-danger', 'pb-0', 'pt-0', 'mb-1');
-      div.innerHTML = `<strong>Ouch...Houston, we’ve had a problem: </strong> ${errors[name]}`;
-      errContainer.appendChild(div);
+      div.innerHTML = `<strong>${i18next.t('alerts.problem')}</strong> ${errors[name]}`;
+      alertContainer.appendChild(div);
     });
   }
+};
+
+const renderSuccess = () => {
+  const alertContainer = document.querySelector('.alert-container');
+  const div = document.createElement('div');
+  div.classList.add('alert', 'alert-success', 'pb-0', 'pt-0', 'mb-1');
+  div.innerHTML = `<strong>${i18next.t('alerts.success')}</strong>`;
+  alertContainer.appendChild(div);
 };
 
 export default (state) => {
@@ -77,8 +86,8 @@ export default (state) => {
         submitButton.disabled = true;
         break;
       case 'finished':
-        console.log('Success!!');
         renderFeedList(state);
+        renderSuccess(state);
         break;
       default:
         throw new Error(`Unknown state: ${processState}`);
