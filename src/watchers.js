@@ -27,6 +27,22 @@ const renderFeedList = (state) => {
   container.appendChild(ul);
 };
 
+const renderErrors = (errors) => {
+  const errorNames = Object.keys(errors);
+  const errContainer = document.querySelector('.error-container');
+  if (errContainer.childNodes) {
+    errContainer.innerHTML = '';
+  }
+  if (errorNames.length > 0) {
+    errorNames.forEach((name) => {
+      const div = document.createElement('div');
+      div.classList.add('alert', 'alert-danger', 'pb-0', 'pt-0', 'mb-1');
+      div.innerHTML = `<strong>Ouch...Houston, we’ve had a problem: </strong> ${errors[name]}`;
+      errContainer.appendChild(div);
+    });
+  }
+};
+
 export default (state) => {
   const inputField = document.querySelector('.form-control');
   const submitButton = document.querySelector('.btn');
@@ -43,6 +59,10 @@ export default (state) => {
       inputField.classList.add(state.form.valid ? 'is-valid' : 'is-invalid');
       inputField.classList.remove(state.form.valid ? 'is-invalid' : 'is-valid');
     }
+  });
+
+  watch(state.form, 'errors', () => {
+    renderErrors(state.form.errors);
   });
 
   watch(state.form, 'processState', () => {
