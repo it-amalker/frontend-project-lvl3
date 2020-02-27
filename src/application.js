@@ -21,10 +21,24 @@ const updateFeedsState = (state, feedHTML) => {
   postItems.forEach((post, i) => {
     if (i < 5) {
       const postTitle = post.querySelector('title').innerText.replace('<![CDATA[', '').replace(']]>', '');
-      const postLink = post.querySelector('a').href;
+      const postLink = post.querySelector('a') ? post.querySelector('a').href : post.querySelector('link').innerText;
       state.posts.push({ id, title: postTitle, link: postLink });
     }
   });
+};
+
+const validate = (inputValid, state) => {
+  const errors = {};
+  const inputedValue = state.form.fields.url;
+  const isFeedAlreadyExist = state.feeds.filter((feed) => feed.url === inputedValue).length > 0;
+  if (inputedValue === '') {
+    errors.emptyInput = 'Empty input field not allowed';
+  } else if (isFeedAlreadyExist) {
+    errors.alreadyExist = `Inputed feed <b>${inputedValue}</b> already in the feeds list below`;
+  } else if (!inputValid) {
+    errors.invalidUrl = 'Invalid RSS feed URL. Example of feed URL: <b>http://example.com/feed</b>';
+  }
+  return errors;
 };
 
 export default () => {
@@ -35,6 +49,7 @@ export default () => {
         url: '',
       },
       valid: false,
+      errors: {},
     },
     feeds: [],
     posts: [],
@@ -44,17 +59,16 @@ export default () => {
   const inputField = document.querySelector('.form-control');
   const container = document.querySelector('.container-fluid');
 
-
   inputField.addEventListener('input', (e) => {
-    const inputedUrl = e.target.value;
-    state.form.fields.url = inputedUrl;
+    state.form.fields.url = e.target.value;
     schema
       .isValid({
-        feed: inputedUrl,
+        feed: e.target.value,
       })
       .then((inputValid) => {
-        const isFeedAlreadyExist = state.feeds.filter((feed) => feed.url === inputedUrl).length > 0;
-        state.form.valid = inputValid && !isFeedAlreadyExist && inputedUrl !== '';
+        const errors = validate(inputValid, state);
+        state.form.errors = errors;
+        state.form.valid = _.isEqual(errors, {});
       });
   });
 
@@ -65,9 +79,9 @@ export default () => {
     const proxy = 'https://cors-anywhere.herokuapp.com/';
     axios.get(`${proxy}${feedHost}`)
       .then((response) => response.data)
-      .catch((error) => {
+      .catch(() => {
         state.form.processState = 'filling';
-        console.log(error);
+        state.form.errors = { network: 'Network problems, try again.' };
       })
       .then((data) => {
         updateFeedsState(state, parse(data));
@@ -79,7 +93,6 @@ export default () => {
     state.form.processState = 'filling';
     state.form.valid = false;
     state.form.fields.url = '';
-    console.log(state);
   });
 
   watch(state);
