@@ -1,6 +1,6 @@
 {
   "name": "newsfeed-by-amalker",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "RSS news feed",
   "private": true,
   "scripts": {
@@ -27,6 +27,7 @@
   "dependencies": {
     "axios": "^0.19.2",
     "bootstrap": "^4.4.1",
+    "i18next": "^19.3.2",
     "jquery": "^3.4.1",
     "lodash": "^4.17.15",
     "melanke-watchjs": "^1.5.2",
