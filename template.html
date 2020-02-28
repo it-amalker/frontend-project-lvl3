@@ -5,15 +5,15 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
   </head>
   <body>
-    <div class="jumbotron mb-1">
+    <div class="jumbotron mb-0 pb-2 pt-5 border">
       <h1 class="display-4">RSS aggregator</h1>
-      <p class="lead">Input RSS feed URL below</p>
       <hr class="m-y-2">
-      <form class="form form-inline" novalidate>
+      <p>Input RSS feed URL below</p>
+      <form class="form form-inline ml-0">
         <div class="form-group mb-2">
           <label for="feed-name"></label>
-          <input type="text" class="form-control mx-sm-3 mb-2" id="feed-name" placeholder="Input RSS feed URL here" value="">
-          <button class="btn btn-primary mb-2" type="submit" disabled>Add RSS</button>
+          <input type="text" class="form-control mb-2 mr-3" id="feed-name" placeholder="http://example.com/feed" value="">
+          <button class="btn btn-primary mb-2" type="submit" disabled>Add RSS feed</button>
         </div>
       </form>
       <div class="alert-container"></div>
