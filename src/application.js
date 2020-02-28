@@ -11,7 +11,14 @@ const schema = yup.object().shape({
   feed: yup.string().url(),
 });
 
-const updateFeedsState = (state, feedHTML) => {
+const getProxyUrl = (url) => {
+  const proxy = 'https://cors-anywhere.herokuapp.com/';
+  const feedHost = url.replace(/^https?:\/\//i, '');
+  return `${proxy}${feedHost}`;
+};
+
+const updateFeedsState = (feedState, feedHTML) => {
+  const state = feedState;
   const id = _.uniqueId();
   const title = feedHTML.querySelector('title').innerText;
   const description = feedHTML.querySelector('description').innerText;
@@ -20,13 +27,23 @@ const updateFeedsState = (state, feedHTML) => {
   });
 
   const postItems = feedHTML.querySelectorAll('item');
-  postItems.forEach((post, i) => {
-    if (i < 5) {
-      const postTitle = post.querySelector('title').innerText.replace('<![CDATA[', '').replace(']]>', '');
-      const postLink = post.querySelector('a') ? post.querySelector('a').href : post.querySelector('link').innerText;
-      state.posts.push({ id, title: postTitle, link: postLink });
-    }
+  postItems.forEach((post) => {
+    const postTitle = post.querySelector('title').innerText.replace('<![CDATA[', '').replace(']]>', '');
+    const postLink = post.querySelector('a') ? post.querySelector('a').href : post.querySelector('link').innerText;
+    state.posts.push({ id, title: postTitle, link: postLink });
   });
+  state.lastUpdate = Date.now();
+};
+
+const addNewPosts = (feed, posts, feedState) => {
+  const state = feedState;
+  const feedID = feed.id;
+  posts.forEach((post) => {
+    const postTitle = post.querySelector('title').innerText.replace('<![CDATA[', '').replace(']]>', '');
+    const postLink = post.querySelector('a') ? post.querySelector('a').href : post.querySelector('link').innerText;
+    state.posts.unshift({ id: feedID, title: postTitle, link: postLink });
+  });
+  state.lastUpdate = Date.now();
 };
 
 const validate = (inputValid, state) => {
@@ -41,6 +58,31 @@ const validate = (inputValid, state) => {
     errors.invalidUrl = i18next.t('errors.invalidUrl');
   }
   return errors;
+};
+
+const autoupdate = (feedState) => {
+  const state = feedState;
+  state.updated = true;
+  state.feeds.forEach((feed) => {
+    axios.get(getProxyUrl(feed.url))
+      .then((response) => response.data)
+      .catch(() => {
+        console.log('Network problems');
+      })
+      .then((data) => {
+        const html = parse(data);
+        const posts = html.querySelectorAll('item');
+        const newPosts = [...posts].filter((post) => {
+          const postDate = post.querySelector('pubdate').innerText;
+          return Date.parse(postDate) > state.lastUpdate;
+        });
+        if (newPosts.length > 0) {
+          addNewPosts(feed, newPosts, state);
+          state.updated = false;
+        }
+      });
+  });
+  setTimeout(autoupdate, 15 * 1000, state);
 };
 
 export default () => {
@@ -63,11 +105,13 @@ export default () => {
     },
     feeds: [],
     posts: [],
+    updated: true,
+    lastUpdate: 0,
   };
 
   const form = document.querySelector('.form');
   const inputField = document.querySelector('.form-control');
-  const container = document.querySelector('.accordion');
+  const feedsContainer = document.querySelector('.accordion');
 
   inputField.addEventListener('input', (e) => {
     state.form.fields.url = e.target.value;
@@ -85,21 +129,22 @@ export default () => {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     state.form.processState = 'sending';
-    const feedHost = state.form.fields.url.replace(/^https?:\/\//i, '');
-    const proxy = 'https://cors-anywhere.herokuapp.com/';
-    axios.get(`${proxy}${feedHost}`)
+    axios.get(getProxyUrl(state.form.fields.url))
       .then((response) => response.data)
       .catch(() => {
         state.form.processState = 'filling';
-        state.form.errors = { network: i18next.t('errors.inetworkIssue') };
+        state.form.errors = { network: i18next.t('errors.networkIssue') };
       })
       .then((data) => {
         updateFeedsState(state, parse(data));
         state.form.processState = 'finished';
+        if (state.feeds.length < 2) {
+          autoupdate(state);
+        }
       });
   });
 
-  container.addEventListener('DOMNodeInserted', () => {
+  feedsContainer.addEventListener('DOMNodeInserted', () => {
     state.form.processState = 'filling';
     state.form.valid = false;
     state.form.fields.url = '';

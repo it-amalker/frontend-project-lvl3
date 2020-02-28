@@ -48,6 +48,12 @@ export default (state) => {
     renderErrors(state.form.errors);
   });
 
+  watch(state, 'updated', () => {
+    if (state.updated === false) {
+      generateFeedCard(state.feeds, state.posts);
+    }
+  });
+
   watch(state.form, 'processState', () => {
     const { processState } = state.form;
     switch (processState) {
