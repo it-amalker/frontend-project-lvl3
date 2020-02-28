@@ -1,32 +1,6 @@
 import { watch } from 'melanke-watchjs';
 import i18next from 'i18next';
-
-const renderFeedList = (state) => {
-  const container = document.querySelector('.container-fluid');
-  const ul = document.createElement('ul');
-  ul.classList.add('list-group', 'list-group-flush');
-  state.feeds.forEach((feed) => {
-    const li = document.createElement('li');
-    li.classList.add('list-group-item');
-    li.innerHTML = `<b>${feed.title}</b> - ${feed.description}`;
-    state.posts.forEach((post) => {
-      if (feed.id === post.id) {
-        const postList = document.createElement('ul');
-        postList.classList.add('list-group');
-        const postItem = document.createElement('li');
-        postItem.classList.add('list-group-item', 'pb-0', 'pt-0', 'border-0');
-        postItem.innerHTML = `<a href="${post.link}">${post.title}</a>`;
-        postList.appendChild(postItem);
-        li.appendChild(postList);
-      }
-    });
-    ul.appendChild(li);
-  });
-  if (container.childNodes) {
-    container.innerHTML = '';
-  }
-  container.appendChild(ul);
-};
+import generateFeedCard from './componets';
 
 const renderErrors = (errors) => {
   const errorNames = Object.keys(errors);
@@ -86,7 +60,7 @@ export default (state) => {
         submitButton.disabled = true;
         break;
       case 'finished':
-        renderFeedList(state);
+        generateFeedCard(state.feeds, state.posts);
         renderSuccess(state);
         break;
       default:

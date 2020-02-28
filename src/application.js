@@ -67,7 +67,7 @@ export default () => {
 
   const form = document.querySelector('.form');
   const inputField = document.querySelector('.form-control');
-  const container = document.querySelector('.container-fluid');
+  const container = document.querySelector('.accordion');
 
   inputField.addEventListener('input', (e) => {
     state.form.fields.url = e.target.value;
