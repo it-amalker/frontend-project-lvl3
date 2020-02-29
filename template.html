@@ -6,24 +6,27 @@
   </head>
   <body>
     <div class="jumbotron mb-0 pb-2 pt-5 border">
-      <h1 class="display-4">RSS aggregator</h1>
+      <h1 class="display-4">RSS Aggr<i class="mb-1" stroke-width="3" width="31" height="31" data-feather="rss"></i>gator</h1>
       <hr class="m-y-2">
-      <p>Input RSS feed URL below</p>
+      <p><i stroke-width="2" width="16" height="16" data-feather="link"></i> Input RSS feed URL below</p>
       <form class="form form-inline ml-0">
         <div class="form-group mb-2">
           <label for="feed-name"></label>
           <input type="text" class="form-control mb-2 mr-3" id="feed-name" placeholder="http://example.com/feed" value="">
-          <button class="btn btn-primary mb-2" type="submit" disabled>Add RSS feed</button>
+          <button class="btn btn-primary mb-2" type="submit" disabled>Add RSS feed <i class="mb-1" width="18" height="18" data-feather="rss"></i></button>
         </div>
       </form>
       <div class="alert-container"></div>
     </div>
     <div class="accordion" id="accordion"></div>
 
-
+  <script src="https://unpkg.com/feather-icons"></script>
   <script type="text/javascript" src="main.js"></script>
   <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+  <script>
+    feather.replace()
+  </script>
 </body>
 </html>
