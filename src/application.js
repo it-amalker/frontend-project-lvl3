@@ -17,6 +17,17 @@ const getProxyUrl = (url) => {
   return `${proxy}${feedHost}`;
 };
 
+const updatePostsState = (feedID, posts, feedState) => {
+  const state = feedState;
+  const reversedPosts = _.reverse([...posts]);
+  reversedPosts.forEach((post) => {
+    const postTitle = post.querySelector('title').innerText.replace('<![CDATA[', '').replace(']]>', '');
+    const postLink = post.querySelector('a') ? post.querySelector('a').href : post.querySelector('link').innerText;
+    state.posts.unshift({ id: feedID, title: postTitle, link: postLink });
+  });
+  state.lastUpdate = Date.now();
+};
+
 const updateFeedsState = (feedState, feedHTML) => {
   const state = feedState;
   const id = _.uniqueId();
@@ -27,23 +38,7 @@ const updateFeedsState = (feedState, feedHTML) => {
   });
 
   const postItems = feedHTML.querySelectorAll('item');
-  postItems.forEach((post) => {
-    const postTitle = post.querySelector('title').innerText.replace('<![CDATA[', '').replace(']]>', '');
-    const postLink = post.querySelector('a') ? post.querySelector('a').href : post.querySelector('link').innerText;
-    state.posts.push({ id, title: postTitle, link: postLink });
-  });
-  state.lastUpdate = Date.now();
-};
-
-const addNewPosts = (feed, posts, feedState) => {
-  const state = feedState;
-  const feedID = feed.id;
-  posts.forEach((post) => {
-    const postTitle = post.querySelector('title').innerText.replace('<![CDATA[', '').replace(']]>', '');
-    const postLink = post.querySelector('a') ? post.querySelector('a').href : post.querySelector('link').innerText;
-    state.posts.unshift({ id: feedID, title: postTitle, link: postLink });
-  });
-  state.lastUpdate = Date.now();
+  updatePostsState(id, postItems, state);
 };
 
 const validate = (inputValid, state) => {
@@ -67,7 +62,7 @@ const autoupdate = (feedState) => {
     axios.get(getProxyUrl(feed.url))
       .then((response) => response.data)
       .catch(() => {
-        console.log('Network problems');
+        state.form.errors = { network: i18next.t('errors.networkUpdateIssue') };
       })
       .then((data) => {
         const html = parse(data);
@@ -77,7 +72,7 @@ const autoupdate = (feedState) => {
           return Date.parse(postDate) > state.lastUpdate;
         });
         if (newPosts.length > 0) {
-          addNewPosts(feed, newPosts, state);
+          updatePostsState(feed.id, newPosts, state);
           state.updated = false;
         }
       });
@@ -133,7 +128,7 @@ export default () => {
       .then((response) => response.data)
       .catch(() => {
         state.form.processState = 'filling';
-        state.form.errors = { network: i18next.t('errors.networkIssue') };
+        state.form.errors = { network: i18next.t('errors.networkSubmitIssue') };
       })
       .then((data) => {
         updateFeedsState(state, parse(data));
