@@ -57,7 +57,7 @@ export default (state) => {
   });
 
   watch(state, 'updated', () => {
-    if (state.updated === false) {
+    if (!state.updated) {
       generateFeedCards(state.feeds, state.posts);
     }
   });
