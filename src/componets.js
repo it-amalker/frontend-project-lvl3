@@ -20,7 +20,8 @@ export default (feeds, posts) => {
     button.setAttribute('data-target', `#collapse-${feed.id}`);
     button.setAttribute('aria-expanded', 'true');
     button.setAttribute('aria-controls', `collapse-${feed.id}`);
-    button.innerHTML = `<b>${feed.title}</b> - ${feed.description}`;
+    button.innerHTML = `<span class="badge badge-pill badge-warning">Feed</span>  
+      <b>${feed.title}</b> - ${feed.description}`;
 
     header.appendChild(button);
     cardHeader.appendChild(header);
@@ -30,15 +31,18 @@ export default (feeds, posts) => {
     postContent.classList.add('collapse');
     postContent.id = `collapse-${feed.id}`;
     postContent.setAttribute('data-target', `collapse-${feed.id}`);
+
     const cardBody = document.createElement('div');
     cardBody.classList.add('card-body');
+
     const postList = document.createElement('ul');
     postList.classList.add('list-group');
+
     posts.forEach((post) => {
       if (feed.id === post.id) {
         const postItem = document.createElement('li');
         postItem.classList.add('list-group-item', 'pb-0', 'pt-0', 'border-0');
-        postItem.innerHTML = `<a href="${post.link}">${post.title}</a>`;
+        postItem.innerHTML = `<span class="badge badge-primary">Post</span> <a href="${post.link}">${post.title}</a>`;
         postList.appendChild(postItem);
       }
     });
