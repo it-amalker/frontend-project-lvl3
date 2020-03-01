@@ -6,6 +6,7 @@ export default {
       invalidUrl: 'Invalid RSS feed URL',
       networkSubmitIssue: 'Network problems, new feed was not added.',
       networkUpdateIssue: 'Network problems, posts were not updated.',
+      unsupportedFeedFormat: 'Unsupported feed content type.',
     },
     alerts: {
       problem: 'Ouch...Houston, we’ve had a problem:',
