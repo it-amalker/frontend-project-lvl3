@@ -21,8 +21,11 @@ const updatePostsState = (feedID, posts, feedState) => {
   const state = feedState;
   const reversedPosts = _.reverse([...posts]);
   reversedPosts.forEach((post) => {
-    const postTitle = post.querySelector('title').innerText.replace('<![CDATA[', '').replace(']]>', '');
-    const postLink = post.querySelector('a') ? post.querySelector('a').href : post.querySelector('link').innerText;
+    const postTitleEl = post.querySelector('title');
+    const postTitle = postTitleEl.innerText.replace('<![CDATA[', '').replace(']]>', '');
+    const postLinkEl = post.querySelector('a');
+    const postLinkElAlternative = post.querySelector('link');
+    const postLink = postLinkEl ? postLinkEl.href : postLinkElAlternative.innerText;
     state.posts.unshift({ id: feedID, title: postTitle, link: postLink });
   });
   state.lastUpdate = Date.now();
@@ -31,12 +34,13 @@ const updatePostsState = (feedID, posts, feedState) => {
 const updateFeedsState = (feedState, feedHTML) => {
   const state = feedState;
   const id = _.uniqueId();
-  const title = feedHTML.querySelector('title').innerText;
-  const description = feedHTML.querySelector('description').innerText;
+  const titleEl = feedHTML.querySelector('title');
+  const title = titleEl.innerText;
+  const descriptionEl = feedHTML.querySelector('description');
+  const description = descriptionEl.innerText;
   state.feeds.unshift({
     id, title, description, url: state.form.fields.url,
   });
-
   const postItems = feedHTML.querySelectorAll('item');
   updatePostsState(id, postItems, state);
 };
@@ -44,7 +48,7 @@ const updateFeedsState = (feedState, feedHTML) => {
 const validate = (inputValid, state) => {
   const errors = {};
   const inputedValue = state.form.fields.url;
-  const isFeedAlreadyExist = state.feeds.filter((feed) => feed.url === inputedValue).length > 0;
+  const isFeedAlreadyExist = state.feeds.find((feed) => feed.url === inputedValue);
   if (inputedValue === '') {
     errors.emptyInput = i18next.t('errors.emptyInput');
   } else if (isFeedAlreadyExist) {
@@ -68,7 +72,8 @@ const autoupdate = (feedState) => {
         const html = parse(data);
         const posts = html.querySelectorAll('item');
         const newPosts = [...posts].filter((post) => {
-          const postDate = post.querySelector('pubdate').innerText;
+          const postDateEl = post.querySelector('pubdate');
+          const postDate = postDateEl.innerText;
           return Date.parse(postDate) > state.lastUpdate;
         });
         if (newPosts.length > 0) {
@@ -77,7 +82,7 @@ const autoupdate = (feedState) => {
         }
       });
   });
-  setTimeout(autoupdate, 15 * 1000, state);
+  setTimeout(autoupdate, 5 * 1000, state);
 };
 
 export default () => {
@@ -125,17 +130,26 @@ export default () => {
     e.preventDefault();
     state.form.processState = 'sending';
     axios.get(getProxyUrl(state.form.fields.url))
-      .then((response) => response.data)
+      .then((response) => [response.data, response.headers])
       .catch(() => {
         state.form.processState = 'filling';
         state.form.errors = { network: i18next.t('errors.networkSubmitIssue') };
       })
-      .then((data) => {
-        updateFeedsState(state, parse(data));
-        state.form.processState = 'finished';
-        if (state.feeds.length < 2) {
-          autoupdate(state);
+      .then(([data, headers]) => {
+        const isXmlData = headers['content-type'].includes('xml');
+        if (isXmlData) {
+          updateFeedsState(state, parse(data));
+          state.form.processState = 'finished';
+          if (state.feeds.length < 2) {
+            autoupdate(state);
+          }
+        } else {
+          throw new Error('Unsupported content type');
         }
+      })
+      .catch(() => {
+        state.form.processState = 'filling';
+        state.form.errors = { network: i18next.t('errors.unsupportedFeedFormat') };
       });
   });
 
