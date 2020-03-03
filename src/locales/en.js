@@ -2,7 +2,7 @@ export default {
   translation: {
     errors: {
       emptyInput: 'Empty input field not allowed',
-      feedAlreadyExist: 'Inputed feed <b>{{ value }}</b> already in the feeds list below',
+      feedAlreadyExist: 'Inputed feed is already in the feeds list below',
       invalidUrl: 'Invalid RSS feed URL',
       networkSubmitIssue: 'Network problems, new feed was not added.',
       networkUpdateIssue: 'Network problems, posts were not updated.',
