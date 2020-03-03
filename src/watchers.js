@@ -3,16 +3,15 @@ import i18next from 'i18next';
 import generateFeedCards from './componets';
 
 const renderErrors = (errors) => {
-  const errorNames = Object.keys(errors);
   const alertContainer = document.querySelector('.alert-container');
   if (alertContainer.childNodes) {
     alertContainer.innerHTML = '';
   }
-  if (errorNames.length > 0) {
-    errorNames.forEach((name) => {
+  if (errors.length > 0) {
+    errors.forEach((error) => {
       const div = document.createElement('div');
       div.classList.add('alert', 'alert-danger', 'pb-0', 'pt-0', 'mb-1');
-      div.innerHTML = `<strong>${i18next.t('alerts.problem')}</strong> ${errors[name]}`;
+      div.innerHTML = `<strong>${i18next.t('alerts.problem')}</strong> ${i18next.t(`errors.${error}`)}`;
       alertContainer.appendChild(div);
     });
   }
@@ -27,11 +26,16 @@ const renderAlert = (state) => {
   };
   removeAlert();
   const div = document.createElement('div');
-  const alertType = state.form.processState === 'sending' ? 'primary' : 'success';
+  const { processState } = state.form;
+  const alertPropertiesByProcessState = {
+    sending: { type: 'primary', delay: 120 },
+    finished: { type: 'success', delay: 10 },
+  };
+  const { type: alertType, delay } = alertPropertiesByProcessState[processState];
   div.classList.add('alert', `alert-${alertType}`, 'pb-0', 'pt-0', 'mb-1');
-  div.innerHTML = `<strong>${i18next.t(`alerts.${state.form.processState}`)}</strong>`;
+  div.innerHTML = `<strong>${i18next.t(`alerts.${processState}`)}</strong>`;
   alertContainer.appendChild(div);
-  setTimeout(removeAlert, 5 * 1000);
+  setTimeout(removeAlert, delay * 1000);
 };
 
 export default (state) => {
@@ -64,11 +68,14 @@ export default (state) => {
 
   watch(state.form, 'processState', () => {
     const { processState } = state.form;
+    const resetInput = () => {
+      inputField.value = '';
+      inputField.classList.remove('is-valid');
+    };
     switch (processState) {
       case 'filling':
+        resetInput();
         submitButton.disabled = false;
-        inputField.value = '';
-        inputField.classList.remove('is-valid');
         break;
       case 'sending':
         submitButton.disabled = true;
@@ -77,6 +84,8 @@ export default (state) => {
       case 'finished':
         renderAlert(state);
         generateFeedCards(state.feeds, state.posts);
+        resetInput();
+        console.log('finished!!!!');
         break;
       default:
         throw new Error(`Unknown state: ${processState}`);

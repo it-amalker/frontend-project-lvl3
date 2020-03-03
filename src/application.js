@@ -1,11 +1,9 @@
-import _ from 'lodash';
+import * as yup from 'yup';
+import axios from 'axios';
 import i18next from 'i18next';
 import en from './locales/en';
-import parse from './parser';
+import getFeedData from './parser';
 import watch from './watchers';
-
-const yup = require('yup');
-const axios = require('axios').default;
 
 const schema = yup.object().shape({
   feed: yup.string().url(),
@@ -17,67 +15,58 @@ const getProxyUrl = (url) => {
   return `${proxy}${feedHost}`;
 };
 
-const updatePostsState = (feedID, posts, feedState) => {
+const resetFormState = (feedState) => {
   const state = feedState;
-  const reversedPosts = _.reverse([...posts]);
-  reversedPosts.forEach((post) => {
-    const postTitleEl = post.querySelector('title');
-    const postTitle = postTitleEl.innerText.replace('<![CDATA[', '').replace(']]>', '');
-    const postLinkEl = post.querySelector('a');
-    const postLinkElAlternative = post.querySelector('link');
-    const postLink = postLinkEl ? postLinkEl.href : postLinkElAlternative.innerText;
-    state.posts.unshift({ id: feedID, title: postTitle, link: postLink });
+  state.form.valid = false;
+  state.form.fields.url = '';
+};
+
+const updatePostsState = (feedState, posts, id) => {
+  const state = feedState;
+  posts.forEach((post) => {
+    state.posts.unshift({ ...post, id });
   });
   state.lastUpdate = Date.now();
 };
 
-const updateFeedsState = (feedState, feedHTML) => {
-  const state = feedState;
-  const id = _.uniqueId();
-  const titleEl = feedHTML.querySelector('title');
-  const title = titleEl.innerText;
-  const descriptionEl = feedHTML.querySelector('description');
-  const description = descriptionEl.innerText;
-  state.feeds.unshift({
-    id, title, description, url: state.form.fields.url,
-  });
-  const postItems = feedHTML.querySelectorAll('item');
-  updatePostsState(id, postItems, state);
+const updateFeedsState = (state, feedData) => {
+  const [feed, posts] = feedData;
+  state.feeds.unshift({ ...feed, url: state.form.fields.url });
+  updatePostsState(state, posts, feed.id);
 };
 
-const validate = (inputValid, state) => {
-  const errors = {};
+const validate = (inputValid, feedState) => {
+  const state = feedState;
+  const errors = [];
   const inputedValue = state.form.fields.url;
   const isFeedAlreadyExist = state.feeds.find((feed) => feed.url === inputedValue);
   if (inputedValue === '') {
-    errors.emptyInput = i18next.t('errors.emptyInput');
+    errors.push('emptyInput');
   } else if (isFeedAlreadyExist) {
-    errors.alreadyExist = i18next.t('errors.feedAlreadyExist', { value: inputedValue });
+    errors.push('feedAlreadyExist');
   } else if (!inputValid) {
-    errors.invalidUrl = i18next.t('errors.invalidUrl');
+    errors.push('invalidUrl');
   }
-  return errors;
+  state.form.errors = errors;
+
+  return errors.length < 1;
 };
 
 const autoupdate = (feedState) => {
+  console.log(feedState.form.processState);
   const state = feedState;
   state.updated = true;
   state.feeds.forEach((feed) => {
     axios.get(getProxyUrl(feed.url))
       .then((response) => response.data)
       .catch(() => {
-        state.form.errors = { network: i18next.t('errors.networkUpdateIssue') };
+        state.form.errors = [...state.form.errors, 'networkUpdateIssue'];
       })
       .then((data) => {
-        const html = parse(data);
-        const posts = html.querySelectorAll('item');
-        const newPosts = [...posts].filter((post) => {
-          const postDateEl = post.querySelector('pubdate');
-          const postDate = postDateEl.innerText;
-          return Date.parse(postDate) > state.lastUpdate;
-        });
+        const [, posts] = getFeedData(data);
+        const newPosts = [...posts].filter((post) => Date.parse(post.date) > state.lastUpdate);
         if (newPosts.length > 0) {
-          updatePostsState(feed.id, newPosts, state);
+          updatePostsState(state, newPosts, feed.id);
           state.updated = false;
         }
       });
@@ -101,7 +90,7 @@ export default () => {
         url: '',
       },
       valid: false,
-      errors: {},
+      errors: [],
     },
     feeds: [],
     posts: [],
@@ -111,18 +100,16 @@ export default () => {
 
   const form = document.querySelector('.form');
   const inputField = document.querySelector('.form-control');
-  const feedsContainer = document.querySelector('.accordion');
 
   inputField.addEventListener('input', (e) => {
+    state.form.processState = 'filling';
     state.form.fields.url = e.target.value;
     schema
       .isValid({
         feed: e.target.value,
       })
       .then((inputValid) => {
-        const errors = validate(inputValid, state);
-        state.form.errors = errors;
-        state.form.valid = _.isEqual(errors, {});
+        state.form.valid = validate(inputValid, state);
       });
   });
 
@@ -133,12 +120,14 @@ export default () => {
       .then((response) => [response.data, response.headers])
       .catch(() => {
         state.form.processState = 'filling';
-        state.form.errors = { network: i18next.t('errors.networkSubmitIssue') };
+        resetFormState(state);
+        state.form.errors = [...state.form.errors, 'networkSubmitIssue'];
       })
       .then(([data, headers]) => {
         const isXmlData = headers['content-type'].includes('xml');
         if (isXmlData) {
-          updateFeedsState(state, parse(data));
+          updateFeedsState(state, getFeedData(data));
+          resetFormState(state);
           state.form.processState = 'finished';
           if (state.feeds.length < 2) {
             autoupdate(state);
@@ -149,14 +138,9 @@ export default () => {
       })
       .catch(() => {
         state.form.processState = 'filling';
-        state.form.errors = { network: i18next.t('errors.unsupportedFeedFormat') };
+        resetFormState(state);
+        state.form.errors = [...state.form.errors, 'unsupportedFeedFormat'];
       });
-  });
-
-  feedsContainer.addEventListener('DOMNodeInserted', () => {
-    state.form.processState = 'filling';
-    state.form.valid = false;
-    state.form.fields.url = '';
   });
 
   watch(state);
