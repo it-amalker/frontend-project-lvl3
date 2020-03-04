@@ -9,7 +9,7 @@ export default (data) => {
   const descriptionEl = dom.querySelector('description');
   const feed = { id, title: titleEl.innerText, description: descriptionEl.innerText };
 
-  const posts = [];
+  let posts = [];
   const postsItems = dom.querySelectorAll('item');
   const reversedPosts = _.reverse([...postsItems]);
   reversedPosts.forEach((post) => {
@@ -20,7 +20,7 @@ export default (data) => {
     const postLink = postLinkEl ? postLinkEl.href : postLinkElAlternative.innerText;
     const postDateEl = post.querySelector('pubdate');
     const postDate = postDateEl.innerText;
-    posts.push({ title: postTitle, link: postLink, date: postDate });
+    posts = [...posts, { title: postTitle, link: postLink, date: postDate }];
   });
 
   return [feed, posts];
