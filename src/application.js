@@ -37,15 +37,15 @@ const updateFeedsState = (state, feedData) => {
 
 const validate = (inputValid, feedState) => {
   const state = feedState;
-  const errors = [];
+  let errors = [];
   const inputedValue = state.form.fields.url;
   const isFeedAlreadyExist = state.feeds.find((feed) => feed.url === inputedValue);
   if (inputedValue === '') {
-    errors.push('emptyInput');
+    errors = [...errors, 'emptyInput'];
   } else if (isFeedAlreadyExist) {
-    errors.push('feedAlreadyExist');
+    errors = [...errors, 'feedAlreadyExist'];
   } else if (!inputValid) {
-    errors.push('invalidUrl');
+    errors = [...errors, 'invalidUrl'];
   }
   state.form.errors = errors;
 
@@ -53,7 +53,6 @@ const validate = (inputValid, feedState) => {
 };
 
 const autoupdate = (feedState) => {
-  console.log(feedState.form.processState);
   const state = feedState;
   state.updated = true;
   state.feeds.forEach((feed) => {
@@ -127,8 +126,8 @@ export default () => {
         const isXmlData = headers['content-type'].includes('xml');
         if (isXmlData) {
           updateFeedsState(state, getFeedData(data));
-          resetFormState(state);
           state.form.processState = 'finished';
+          resetFormState(state);
           if (state.feeds.length < 2) {
             autoupdate(state);
           }

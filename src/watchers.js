@@ -3,39 +3,43 @@ import i18next from 'i18next';
 import generateFeedCards from './componets';
 
 const renderErrors = (errors) => {
-  const alertContainer = document.querySelector('.alert-container');
-  if (alertContainer.childNodes) {
-    alertContainer.innerHTML = '';
+  const errorContainer = document.querySelector('.error-container');
+  if (errorContainer.childNodes) {
+    errorContainer.innerHTML = '';
   }
-  if (errors.length > 0) {
+  if (errors.length > 0 && errors.length < 4) {
     errors.forEach((error) => {
       const div = document.createElement('div');
       div.classList.add('alert', 'alert-danger', 'pb-0', 'pt-0', 'mb-1');
       div.innerHTML = `<strong>${i18next.t('alerts.problem')}</strong> ${i18next.t(`errors.${error}`)}`;
-      alertContainer.appendChild(div);
+      errorContainer.appendChild(div);
     });
   }
 };
 
-const renderAlert = (state) => {
+const removeAlerts = () => {
   const alertContainer = document.querySelector('.alert-container');
-  const removeAlert = () => {
-    if (alertContainer.childNodes) {
-      alertContainer.innerHTML = '';
-    }
-  };
-  removeAlert();
-  const div = document.createElement('div');
+  if (alertContainer.childNodes) {
+    alertContainer.innerHTML = '';
+  }
+};
+
+const renderAlert = (state) => {
+  removeAlerts();
+  const alertContainer = document.querySelector('.alert-container');
+
   const { processState } = state.form;
   const alertPropertiesByProcessState = {
-    sending: { type: 'primary', delay: 120 },
-    finished: { type: 'success', delay: 10 },
+    sending: { alertType: 'primary', delay: 120 },
+    finished: { alertType: 'success', delay: 10 },
   };
-  const { type: alertType, delay } = alertPropertiesByProcessState[processState];
+  const { alertType, delay } = alertPropertiesByProcessState[processState];
+
+  const div = document.createElement('div');
   div.classList.add('alert', `alert-${alertType}`, 'pb-0', 'pt-0', 'mb-1');
   div.innerHTML = `<strong>${i18next.t(`alerts.${processState}`)}</strong>`;
   alertContainer.appendChild(div);
-  setTimeout(removeAlert, delay * 1000);
+  setTimeout(removeAlerts, delay * 1000);
 };
 
 export default (state) => {
@@ -49,6 +53,7 @@ export default (state) => {
   watch(state.form, 'fields', () => {
     const inputValue = state.form.fields.url;
     if (inputValue === '') {
+      inputField.value = '';
       inputField.classList.remove('is-invalid', 'is-valid');
     } else {
       inputField.classList.add(state.form.valid ? 'is-valid' : 'is-invalid');
@@ -68,14 +73,10 @@ export default (state) => {
 
   watch(state.form, 'processState', () => {
     const { processState } = state.form;
-    const resetInput = () => {
-      inputField.value = '';
-      inputField.classList.remove('is-valid');
-    };
     switch (processState) {
       case 'filling':
-        resetInput();
         submitButton.disabled = false;
+        removeAlerts();
         break;
       case 'sending':
         submitButton.disabled = true;
@@ -84,8 +85,6 @@ export default (state) => {
       case 'finished':
         renderAlert(state);
         generateFeedCards(state.feeds, state.posts);
-        resetInput();
-        console.log('finished!!!!');
         break;
       default:
         throw new Error(`Unknown state: ${processState}`);
