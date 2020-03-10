@@ -75,7 +75,6 @@ export default (state) => {
     const { processState } = state.form;
     switch (processState) {
       case 'filling':
-        submitButton.disabled = false;
         removeAlerts();
         break;
       case 'sending':
@@ -85,6 +84,9 @@ export default (state) => {
       case 'finished':
         renderAlert(state);
         generateFeedCards(state.feeds, state.posts);
+        break;
+      case 'failed':
+        removeAlerts();
         break;
       default:
         throw new Error(`Unknown state: ${processState}`);
