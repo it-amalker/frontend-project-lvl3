@@ -1,13 +1,10 @@
 import * as yup from 'yup';
 import axios from 'axios';
 import i18next from 'i18next';
+import _ from 'lodash';
 import en from './locales/en';
-import getFeedData from './parser';
+import getFeedElement from './parser';
 import watch from './watchers';
-
-const schema = yup.object().shape({
-  feed: yup.string().url(),
-});
 
 const getProxyUrl = (url) => {
   const proxy = 'https://cors-anywhere.herokuapp.com/';
@@ -21,35 +18,47 @@ const resetFormState = (feedState) => {
   state.form.fields.url = '';
 };
 
-const updatePostsState = (feedState, posts, id) => {
+const createFeed = (feedEl, url) => {
+  const id = _.uniqueId();
+  const titleEl = feedEl.querySelector('title');
+  const descriptionEl = feedEl.querySelector('description');
+  return {
+    id, title: titleEl.innerText, description: descriptionEl.innerText, url,
+  };
+};
+
+const createPosts = (feedEl, id) => {
+  const postItems = feedEl.querySelectorAll('item');
+  const reversedPosts = _.reverse([...postItems]);
+  const posts = reversedPosts.map((post) => {
+    const postTitleEl = post.querySelector('title');
+    const postTitle = postTitleEl.innerText.replace('<![CDATA[', '').replace(']]>', '');
+    const postLinkEl = post.querySelector('a');
+    const postLinkElAlternative = post.querySelector('link');
+    const postLink = postLinkEl ? postLinkEl.href : postLinkElAlternative.innerText;
+    const postDateEl = post.querySelector('pubdate');
+    const postDate = postDateEl.innerText;
+    return {
+      title: postTitle, link: postLink, date: postDate, id,
+    };
+  });
+  return posts;
+};
+
+const updatePosts = (feedState, posts) => {
   const state = feedState;
   posts.forEach((post) => {
-    state.posts.unshift({ ...post, id });
+    state.posts.unshift(post);
   });
-  state.lastUpdate = Date.now();
+  state.lastUpdatedAt = Date.now();
 };
 
-const updateFeedsState = (state, feedData) => {
-  const [feed, posts] = feedData;
-  state.feeds.unshift({ ...feed, url: state.form.fields.url });
-  updatePostsState(state, posts, feed.id);
-};
+const addNewFeed = (state, feedEl) => {
+  const feed = createFeed(feedEl, state.form.fields.url);
+  state.feeds.unshift(feed);
 
-const validate = (inputValid, feedState) => {
-  const state = feedState;
-  let errors = [];
-  const inputedValue = state.form.fields.url;
-  const isFeedAlreadyExist = state.feeds.find((feed) => feed.url === inputedValue);
-  if (inputedValue === '') {
-    errors = [...errors, 'emptyInput'];
-  } else if (isFeedAlreadyExist) {
-    errors = [...errors, 'feedAlreadyExist'];
-  } else if (!inputValid) {
-    errors = [...errors, 'invalidUrl'];
-  }
-  state.form.errors = errors;
-
-  return errors.length < 1;
+  const posts = createPosts(feedEl, feed.id);
+  updatePosts(state, posts);
 };
 
 const autoupdate = (feedState) => {
@@ -57,20 +66,52 @@ const autoupdate = (feedState) => {
   state.updated = true;
   state.feeds.forEach((feed) => {
     axios.get(getProxyUrl(feed.url))
-      .then((response) => response.data)
+      .then((response) => [response.data, response.headers])
       .catch(() => {
         state.form.errors = [...state.form.errors, 'networkUpdateIssue'];
       })
-      .then((data) => {
-        const [, posts] = getFeedData(data);
-        const newPosts = [...posts].filter((post) => Date.parse(post.date) > state.lastUpdate);
+      .then(([data, headers]) => {
+        const feedEl = getFeedElement(data, headers);
+        const posts = createPosts(feedEl, feed.id);
+        const newPosts = [...posts].filter((post) => Date.parse(post.date) > state.lastUpdatedAt);
         if (newPosts.length > 0) {
-          updatePostsState(state, newPosts, feed.id);
+          updatePosts(state, newPosts);
           state.updated = false;
         }
       });
   });
   setTimeout(autoupdate, 5 * 1000, state);
+};
+
+const validate = (state) => {
+  const inputedValue = state.form.fields.url;
+  const schema = yup.object().shape({
+    feed: yup.string().url(),
+  });
+  const isFeedAlreadyExist = state.feeds.find((feed) => feed.url === inputedValue);
+  return schema
+    .isValid({ feed: inputedValue })
+    .then((isValid) => {
+      const errors = [];
+      if (!isValid) {
+        errors.push('invalidUrl');
+      }
+      if (!inputedValue) {
+        errors.push('emptyInput');
+      }
+      if (isFeedAlreadyExist) {
+        errors.push('feedAlreadyExist');
+      }
+      return errors;
+    });
+};
+
+const updateValidateState = (feedState, errorsPromise) => {
+  const state = feedState;
+  errorsPromise.then((errors) => {
+    state.form.errors = errors;
+    state.form.valid = errors.length < 1;
+  });
 };
 
 export default () => {
@@ -94,7 +135,7 @@ export default () => {
     feeds: [],
     posts: [],
     updated: true,
-    lastUpdate: 0,
+    lastUpdatedAt: 0,
   };
 
   const form = document.querySelector('.form');
@@ -103,13 +144,8 @@ export default () => {
   inputField.addEventListener('input', (e) => {
     state.form.processState = 'filling';
     state.form.fields.url = e.target.value;
-    schema
-      .isValid({
-        feed: e.target.value,
-      })
-      .then((inputValid) => {
-        state.form.valid = validate(inputValid, state);
-      });
+    const errorsPromise = validate(state);
+    updateValidateState(state, errorsPromise);
   });
 
   form.addEventListener('submit', (e) => {
@@ -118,25 +154,20 @@ export default () => {
     axios.get(getProxyUrl(state.form.fields.url))
       .then((response) => [response.data, response.headers])
       .catch(() => {
-        state.form.processState = 'filling';
+        state.form.processState = 'failed';
         resetFormState(state);
         state.form.errors = [...state.form.errors, 'networkSubmitIssue'];
       })
       .then(([data, headers]) => {
-        const isXmlData = headers['content-type'].includes('xml');
-        if (isXmlData) {
-          updateFeedsState(state, getFeedData(data));
-          state.form.processState = 'finished';
-          resetFormState(state);
-          if (state.feeds.length < 2) {
-            autoupdate(state);
-          }
-        } else {
-          throw new Error('Unsupported content type');
+        addNewFeed(state, getFeedElement(data, headers));
+        state.form.processState = 'finished';
+        resetFormState(state);
+        if (state.feeds.length < 2) {
+          autoupdate(state);
         }
       })
       .catch(() => {
-        state.form.processState = 'filling';
+        state.form.processState = 'failed';
         resetFormState(state);
         state.form.errors = [...state.form.errors, 'unsupportedFeedFormat'];
       });
