@@ -3,13 +3,15 @@ import axios from 'axios';
 import i18next from 'i18next';
 import _ from 'lodash';
 import en from './locales/en';
-import getFeedElement from './parser';
+import getFeedData from './parser';
 import watch from './watchers';
 
 const getProxyUrl = (url) => {
   const proxy = 'https://cors-anywhere.herokuapp.com/';
-  const feedHost = url.replace(/^https?:\/\//i, '');
-  return `${proxy}${feedHost}`;
+  const feedUrl = new URL(url);
+  const proxyUrl = new URL(`${feedUrl.host}${feedUrl.pathname}`, proxy);
+
+  return proxyUrl.href;
 };
 
 const resetFormState = (feedState) => {
@@ -18,31 +20,17 @@ const resetFormState = (feedState) => {
   state.form.fields.url = '';
 };
 
-const createFeed = (feedEl, url) => {
+const createFeed = (feedData) => {
   const id = _.uniqueId();
-  const titleEl = feedEl.querySelector('title');
-  const descriptionEl = feedEl.querySelector('description');
+  const { title, description, url } = feedData;
   return {
-    id, title: titleEl.innerText, description: descriptionEl.innerText, url,
+    id, title, description, url,
   };
 };
 
-const createPosts = (feedEl, id) => {
-  const postItems = feedEl.querySelectorAll('item');
-  const reversedPosts = _.reverse([...postItems]);
-  const posts = reversedPosts.map((post) => {
-    const postTitleEl = post.querySelector('title');
-    const postTitle = postTitleEl.innerText.replace('<![CDATA[', '').replace(']]>', '');
-    const postLinkEl = post.querySelector('a');
-    const postLinkElAlternative = post.querySelector('link');
-    const postLink = postLinkEl ? postLinkEl.href : postLinkElAlternative.innerText;
-    const postDateEl = post.querySelector('pubdate');
-    const postDate = postDateEl.innerText;
-    return {
-      title: postTitle, link: postLink, date: postDate, id,
-    };
-  });
-  return posts;
+const createPosts = (feedData, id) => {
+  const reversedPosts = _.reverse(feedData.posts);
+  return reversedPosts.map((post) => ({ ...post, id }));
 };
 
 const updatePosts = (feedState, posts) => {
@@ -53,11 +41,11 @@ const updatePosts = (feedState, posts) => {
   state.lastUpdatedAt = Date.now();
 };
 
-const addNewFeed = (state, feedEl) => {
-  const feed = createFeed(feedEl, state.form.fields.url);
+const addNewFeed = (state, feedData) => {
+  const feed = createFeed(feedData);
   state.feeds.unshift(feed);
 
-  const posts = createPosts(feedEl, feed.id);
+  const posts = createPosts(feedData, feed.id);
   updatePosts(state, posts);
 };
 
@@ -66,13 +54,14 @@ const autoupdate = (feedState) => {
   state.updated = true;
   state.feeds.forEach((feed) => {
     axios.get(getProxyUrl(feed.url))
-      .then((response) => [response.data, response.headers])
       .catch(() => {
+        state.form.processState = 'failed';
+        resetFormState(state);
         state.form.errors = [...state.form.errors, 'networkUpdateIssue'];
       })
-      .then(([data, headers]) => {
-        const feedEl = getFeedElement(data, headers);
-        const posts = createPosts(feedEl, feed.id);
+      .then((response) => {
+        const feedData = getFeedData(response);
+        const posts = createPosts(feedData, feed.id);
         const newPosts = [...posts].filter((post) => Date.parse(post.date) > state.lastUpdatedAt);
         if (newPosts.length > 0) {
           updatePosts(state, newPosts);
@@ -83,12 +72,11 @@ const autoupdate = (feedState) => {
   setTimeout(autoupdate, 5 * 1000, state);
 };
 
-const validate = (state) => {
-  const inputedValue = state.form.fields.url;
+const validate = (inputedValue, feeds) => {
   const schema = yup.object().shape({
     feed: yup.string().url(),
   });
-  const isFeedAlreadyExist = state.feeds.find((feed) => feed.url === inputedValue);
+  const isFeedAlreadyExist = feeds.find((feed) => feed.url === inputedValue);
   return schema
     .isValid({ feed: inputedValue })
     .then((isValid) => {
@@ -144,7 +132,7 @@ export default () => {
   inputField.addEventListener('input', (e) => {
     state.form.processState = 'filling';
     state.form.fields.url = e.target.value;
-    const errorsPromise = validate(state);
+    const errorsPromise = validate(e.target.value, state.feeds);
     updateValidateState(state, errorsPromise);
   });
 
@@ -152,14 +140,13 @@ export default () => {
     e.preventDefault();
     state.form.processState = 'sending';
     axios.get(getProxyUrl(state.form.fields.url))
-      .then((response) => [response.data, response.headers])
       .catch(() => {
         state.form.processState = 'failed';
         resetFormState(state);
         state.form.errors = [...state.form.errors, 'networkSubmitIssue'];
       })
-      .then(([data, headers]) => {
-        addNewFeed(state, getFeedElement(data, headers));
+      .then((response) => {
+        addNewFeed(state, getFeedData(response));
         state.form.processState = 'finished';
         resetFormState(state);
         if (state.feeds.length < 2) {
