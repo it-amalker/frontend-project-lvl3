@@ -7,7 +7,7 @@ const renderErrors = (errors) => {
   if (errorContainer.childNodes) {
     errorContainer.innerHTML = '';
   }
-  if (errors.length > 0 && errors.length < 4) {
+  if (errors.length > 0) {
     errors.forEach((error) => {
       const div = document.createElement('div');
       div.classList.add('alert', 'alert-danger', 'pb-0', 'pt-0', 'mb-1');
