@@ -20,9 +20,9 @@ const resetFormState = (feedState) => {
   state.form.fields.url = '';
 };
 
-const createFeed = (feedData) => {
+const createFeed = (feedData, url) => {
   const id = _.uniqueId();
-  const { title, description, url } = feedData;
+  const { title, description } = feedData;
   return {
     id, title, description, url,
   };
@@ -42,7 +42,7 @@ const updatePosts = (feedState, posts) => {
 };
 
 const addNewFeed = (state, feedData) => {
-  const feed = createFeed(feedData);
+  const feed = createFeed(feedData, state.form.fields.url);
   state.feeds.unshift(feed);
 
   const posts = createPosts(feedData, feed.id);
@@ -51,16 +51,17 @@ const addNewFeed = (state, feedData) => {
 
 const autoupdate = (feedState) => {
   const state = feedState;
+  const delay = 5;
   state.updated = true;
   state.feeds.forEach((feed) => {
     axios.get(getProxyUrl(feed.url))
+      .then((response) => response.data)
       .catch(() => {
         state.form.processState = 'failed';
-        resetFormState(state);
         state.form.errors = [...state.form.errors, 'networkUpdateIssue'];
       })
-      .then((response) => {
-        const feedData = getFeedData(response);
+      .then((data) => {
+        const feedData = getFeedData(data);
         const posts = createPosts(feedData, feed.id);
         const newPosts = [...posts].filter((post) => Date.parse(post.date) > state.lastUpdatedAt);
         if (newPosts.length > 0) {
@@ -69,7 +70,7 @@ const autoupdate = (feedState) => {
         }
       });
   });
-  setTimeout(autoupdate, 5 * 1000, state);
+  setTimeout(autoupdate, delay * 1000, state);
 };
 
 const validate = (inputedValue, feeds) => {
@@ -140,13 +141,14 @@ export default () => {
     e.preventDefault();
     state.form.processState = 'sending';
     axios.get(getProxyUrl(state.form.fields.url))
+      .then((response) => response.data)
       .catch(() => {
         state.form.processState = 'failed';
         resetFormState(state);
         state.form.errors = [...state.form.errors, 'networkSubmitIssue'];
       })
-      .then((response) => {
-        addNewFeed(state, getFeedData(response));
+      .then((data) => {
+        addNewFeed(state, getFeedData(data));
         state.form.processState = 'finished';
         resetFormState(state);
         if (state.feeds.length < 2) {
