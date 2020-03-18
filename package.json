@@ -1,6 +1,6 @@
 {
   "name": "feed-aggregator-by-amalker",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "RSS feed aggregator",
   "private": true,
   "scripts": {
