@@ -51,56 +51,51 @@ const addNewFeed = (state, feedData) => {
 
 const autoupdate = (feedState) => {
   const state = feedState;
-  const delay = 5;
+  const delayInSeconds = 5;
   state.updated = true;
-  state.feeds.forEach((feed) => {
-    axios.get(getProxyUrl(feed.url))
-      .then((response) => response.data)
-      .catch(() => {
-        state.form.processState = 'failed';
-        state.form.errors = [...state.form.errors, 'networkUpdateIssue'];
-      })
-      .then((data) => {
-        const feedData = getFeedData(data);
-        const posts = createPosts(feedData, feed.id);
-        const newPosts = [...posts].filter((post) => Date.parse(post.date) > state.lastUpdatedAt);
-        if (newPosts.length > 0) {
-          updatePosts(state, newPosts);
-          state.updated = false;
-        }
-      });
+  state.feeds.forEach(async (feed) => {
+    try {
+      const response = await axios.get(getProxyUrl(feed.url));
+      const feedData = getFeedData(response.data);
+      const posts = createPosts(feedData, feed.id);
+      const newPosts = [...posts].filter((post) => Date.parse(post.date) > state.lastUpdatedAt);
+      if (newPosts.length > 0) {
+        updatePosts(state, newPosts);
+        state.updated = false;
+      }
+    } catch {
+      state.form.processState = 'failed';
+      state.form.errors = [...state.form.errors, 'networkUpdateIssue'];
+    }
   });
-  setTimeout(autoupdate, delay * 1000, state);
+  setTimeout(autoupdate, delayInSeconds * 1000, state);
 };
 
-const validate = (inputedValue, feeds) => {
+const validate = async (inputedValue, feeds) => {
   const schema = yup.object().shape({
     feed: yup.string().url(),
   });
+
+  const errors = [];
+  const isValid = await schema.isValid({ feed: inputedValue });
   const isFeedAlreadyExist = feeds.find((feed) => feed.url === inputedValue);
-  return schema
-    .isValid({ feed: inputedValue })
-    .then((isValid) => {
-      const errors = [];
-      if (!isValid) {
-        errors.push('invalidUrl');
-      }
-      if (!inputedValue) {
-        errors.push('emptyInput');
-      }
-      if (isFeedAlreadyExist) {
-        errors.push('feedAlreadyExist');
-      }
-      return errors;
-    });
+  if (!isValid) {
+    errors.push('invalidUrl');
+  }
+  if (!inputedValue) {
+    errors.push('emptyInput');
+  }
+  if (isFeedAlreadyExist) {
+    errors.push('feedAlreadyExist');
+  }
+  return errors;
 };
 
-const updateValidateState = (feedState, errorsPromise) => {
+const updateValidateState = async (feedState, errorsPromise) => {
   const state = feedState;
-  errorsPromise.then((errors) => {
-    state.form.errors = errors;
-    state.form.valid = errors.length < 1;
-  });
+  const errors = await errorsPromise;
+  state.form.errors = errors;
+  state.form.valid = errors.length < 1;
 };
 
 export default () => {
@@ -137,29 +132,26 @@ export default () => {
     updateValidateState(state, errorsPromise);
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     state.form.processState = 'sending';
-    axios.get(getProxyUrl(state.form.fields.url))
-      .then((response) => response.data)
-      .catch(() => {
-        state.form.processState = 'failed';
-        resetFormState(state);
+    try {
+      const response = await axios.get(getProxyUrl(state.form.fields.url));
+      addNewFeed(state, getFeedData(response.data));
+      state.form.processState = 'finished';
+      resetFormState(state);
+      if (state.feeds.length < 2) {
+        autoupdate(state);
+      }
+    } catch (err) {
+      state.form.processState = 'failed';
+      resetFormState(state);
+      if (err.response) {
         state.form.errors = [...state.form.errors, 'networkSubmitIssue'];
-      })
-      .then((data) => {
-        addNewFeed(state, getFeedData(data));
-        state.form.processState = 'finished';
-        resetFormState(state);
-        if (state.feeds.length < 2) {
-          autoupdate(state);
-        }
-      })
-      .catch(() => {
-        state.form.processState = 'failed';
-        resetFormState(state);
+      } else {
         state.form.errors = [...state.form.errors, 'unsupportedFeedFormat'];
-      });
+      }
+    }
   });
 
   watch(state);
