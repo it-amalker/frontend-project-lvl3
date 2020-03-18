@@ -1,20 +1,21 @@
 import { watch } from 'melanke-watchjs';
 import i18next from 'i18next';
+import _ from 'lodash';
 import generateFeedCards from './componets';
+
 
 const renderErrors = (errors) => {
   const errorContainer = document.querySelector('.error-container');
   if (errorContainer.childNodes) {
     errorContainer.innerHTML = '';
   }
-  if (errors.length > 0) {
-    errors.forEach((error) => {
-      const div = document.createElement('div');
-      div.classList.add('alert', 'alert-danger', 'pb-0', 'pt-0', 'mb-1');
-      div.innerHTML = `<strong>${i18next.t('alerts.problem')}</strong> ${i18next.t(`errors.${error}`)}`;
-      errorContainer.appendChild(div);
-    });
-  }
+
+  _.uniq(errors).forEach((errorName) => {
+    const div = document.createElement('div');
+    div.classList.add('alert', 'alert-danger', 'pb-0', 'pt-0', 'mb-1');
+    div.innerHTML = `<strong>${i18next.t('alerts.problem')}</strong> ${i18next.t(`errors.${errorName}`)}`;
+    errorContainer.appendChild(div);
+  });
 };
 
 const removeAlerts = () => {
