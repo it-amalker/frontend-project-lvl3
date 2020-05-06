@@ -3,12 +3,28 @@ import i18next from 'i18next';
 import _ from 'lodash';
 import generateFeedCards from './componets';
 
+const debounce = () => {
+  let setTimeoutId;
+  return (fn, delay) => {
+    if (setTimeoutId) {
+      clearTimeout(setTimeoutId);
+    }
+    setTimeoutId = setTimeout(fn, delay);
+  };
+};
 
-const renderErrors = (errors) => {
+const setDelay = debounce();
+
+const removeErrors = () => {
   const errorContainer = document.querySelector('.error-container');
   if (errorContainer.childNodes) {
     errorContainer.innerHTML = '';
   }
+};
+
+const renderErrors = (errors) => {
+  const errorContainer = document.querySelector('.error-container');
+  removeErrors();
 
   _.uniq(errors).forEach((errorName) => {
     const div = document.createElement('div');
@@ -16,6 +32,9 @@ const renderErrors = (errors) => {
     div.innerHTML = `<strong>${i18next.t('alerts.problem')}</strong> ${i18next.t(`errors.${errorName}`)}`;
     errorContainer.appendChild(div);
   });
+
+  const delay = 5;
+  setDelay(removeErrors, delay * 1000);
 };
 
 const removeAlerts = () => {
@@ -28,7 +47,6 @@ const removeAlerts = () => {
 const renderAlert = (state) => {
   removeAlerts();
   const alertContainer = document.querySelector('.alert-container');
-
   const { processState } = state.form;
   const alertPropertiesByProcessState = {
     sending: { alertType: 'primary', delay: 120 },
@@ -40,7 +58,7 @@ const renderAlert = (state) => {
   div.classList.add('alert', `alert-${alertType}`, 'pb-0', 'pt-0', 'mb-1');
   div.innerHTML = `<strong>${i18next.t(`alerts.${processState}`)}</strong>`;
   alertContainer.appendChild(div);
-  setTimeout(removeAlerts, delay * 1000);
+  setDelay(removeAlerts, delay * 1000);
 };
 
 export default (state) => {
