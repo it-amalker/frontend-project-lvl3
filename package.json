@@ -28,7 +28,7 @@
     "axios": "^0.19.2",
     "bootstrap": "^4.4.1",
     "i18next": "^19.4.4",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.19",
     "melanke-watchjs": "^1.5.2",
     "popper.js": "^1.16.1",
     "webpack-dev-server": "^3.10.3",
